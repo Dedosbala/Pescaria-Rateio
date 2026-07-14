@@ -33,6 +33,7 @@ function render() {
 
   renderStats();
   renderResumo();
+  renderRateioGeral();
   renderEquipes();
 }
 
@@ -59,13 +60,24 @@ function renderResumo() {
       <tbody>
         ${rows}
         <tr><td><strong>Subtotal fixo geral</strong></td><td class="text-right"><strong>${fmt(r.subtotal_fixo_geral)}</strong></td></tr>
-        <tr><td>Total rateado (combustível/iscas)</td><td class="text-right">${fmt(r.total_rateado_geral)}</td></tr>
+        <tr><td>Total rateado (equipes + geral)</td><td class="text-right">${fmt(r.total_rateado_geral)}</td></tr>
         <tr><td><strong>Custo total geral</strong></td><td class="text-right"><strong>${fmt(r.total_geral)}</strong></td></tr>
         <tr><td>Adiantamentos já recebidos</td><td class="text-right">${fmt(r.adiantamentos_geral)}</td></tr>
         <tr><td><strong>Saldo total a receber</strong></td><td class="text-right saldo-positivo">${fmt(r.saldo_geral)}</td></tr>
       </tbody>
     </table>
   `;
+}
+
+function renderRateioGeral() {
+  const container = document.getElementById('lista-rateio-geral');
+  container.innerHTML = (state.despesas_rateadas_gerais || []).map((d) => `
+    <div class="list-item">
+      <span class="desc">${d.descricao} (÷ ${d.participantes.length} = ${fmt(d.cota_por_participante)} cada)</span>
+      <span>${fmt(d.valor_total)}</span>
+      <button class="btn btn-sm btn-danger no-print" data-action="del-rateio" data-id="${d.id}">Excluir</button>
+    </div>
+  `).join('') || '<p class="muted">Nenhuma despesa geral lançada ainda.</p>';
 }
 
 function renderEquipes() {
@@ -202,6 +214,7 @@ document.addEventListener('blur', async (e) => {
 document.getElementById('btn-add-equipe').addEventListener('click', () => openEquipeModal(null));
 document.getElementById('btn-export-pdf').addEventListener('click', () => window.print());
 document.getElementById('btn-export-xlsx').addEventListener('click', () => { window.location.href = '/api/export/xlsx'; });
+document.getElementById('btn-add-rateio-geral').addEventListener('click', () => openRateioGeralModal());
 
 // ---------- Modal genérico ----------
 const overlay = document.getElementById('modal-overlay');
@@ -323,6 +336,35 @@ function openRateioModal(equipeId) {
       method: 'POST',
       body: JSON.stringify({
         equipe_id: Number(equipeId),
+        descricao: fd.get('descricao'),
+        valor_total: parseFloat(fd.get('valor_total')),
+        data: fd.get('data') || null,
+        participante_ids,
+      }),
+    });
+  });
+}
+
+function openRateioGeralModal() {
+  const checkboxes = state.equipes.map((equipe) => `
+    <div class="equipe-group-title">${equipe.nome}</div>
+    ${equipe.pescadores.map((p) => `
+      <label class="checkbox-row"><input type="checkbox" name="participante" value="${p.id}" checked /> ${p.nome}</label>
+    `).join('')}
+  `).join('');
+
+  openModalRaw('Despesa rateada geral (todos os pescadores)', `
+    <label>Descrição<input name="descricao" type="text" placeholder="Cozinheira, jantar, churrasco..." required /></label>
+    <label>Valor total (R$)<input name="valor_total" type="number" step="0.01" min="0" required /></label>
+    <label>Data<input name="data" type="date" /></label>
+    <div><strong>Dividir entre:</strong></div>
+    ${checkboxes}
+  `, async (fd) => {
+    const participante_ids = fd.getAll('participante').map(Number);
+    await api('/despesas-rateadas', {
+      method: 'POST',
+      body: JSON.stringify({
+        equipe_id: null,
         descricao: fd.get('descricao'),
         valor_total: parseFloat(fd.get('valor_total')),
         data: fd.get('data') || null,

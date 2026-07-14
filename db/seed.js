@@ -73,11 +73,18 @@ async function reset() {
   await supabase.from('eventos').delete().not('id', 'is', null);
 }
 
+const DESPESAS_GERAIS_FECHADAS = [
+  { descricao: 'Cozinheira e ajudante (café da manhã + jantar)', valor_total: 1400 },
+  { descricao: 'Taxa de limpeza (saída)', valor_total: 400 },
+];
+
 async function seed() {
   await reset();
 
   const { data: evento, error: eventoErr } = await supabase.from('eventos').insert(EVENTO).select().single();
   if (eventoErr) throw eventoErr;
+
+  const todosPescadorIds = [];
 
   for (const equipe of EQUIPES) {
     const { data: equipeRow, error: equipeErr } = await supabase.from('equipes').insert({
@@ -95,6 +102,7 @@ async function seed() {
         a_confirmar: !!p.a_confirmar,
       }).select().single();
       if (pescadorErr) throw pescadorErr;
+      todosPescadorIds.push(pescadorRow.id);
 
       const custos = [
         { pescador_id: pescadorRow.id, tipo: 'hospedagem', descricao: 'Hospedagem (3 noites)', valor: p.hospedagem },
@@ -115,7 +123,20 @@ async function seed() {
     }
   }
 
-  console.log('Banco populado com sucesso: 1 evento, 7 equipes, 21 pescadores.');
+  for (const despesa of DESPESAS_GERAIS_FECHADAS) {
+    const { data: despesaRow, error: despesaErr } = await supabase.from('despesas_rateadas').insert({
+      equipe_id: null,
+      descricao: despesa.descricao,
+      valor_total: despesa.valor_total,
+    }).select().single();
+    if (despesaErr) throw despesaErr;
+
+    const participantes = todosPescadorIds.map((pid) => ({ despesa_rateada_id: despesaRow.id, pescador_id: pid }));
+    const { error: partErr } = await supabase.from('despesa_rateada_participantes').insert(participantes);
+    if (partErr) throw partErr;
+  }
+
+  console.log('Banco populado com sucesso: 1 evento, 7 equipes, 21 pescadores, 2 despesas gerais.');
 }
 
 seed().catch((err) => {

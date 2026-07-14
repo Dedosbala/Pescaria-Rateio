@@ -34,16 +34,19 @@ async function buildDashboardData() {
 
   const pescadorIds = pescadores.map((p) => p.id);
 
-  const [{ data: custos, error: custosErr }, { data: adiantamentos, error: adiantErr }, { data: rateadas, error: rateadasErr }] = await Promise.all([
+  const [{ data: custos, error: custosErr }, { data: adiantamentos, error: adiantErr }, { data: rateadas, error: rateadasErr }, { data: rateadasGerais, error: rateadasGeraisErr }] = await Promise.all([
     supabase.from('custos_fixos').select('*').in('pescador_id', pescadorIds.length ? pescadorIds : [0]).order('id'),
     supabase.from('adiantamentos').select('*').in('pescador_id', pescadorIds.length ? pescadorIds : [0]).order('id'),
     supabase.from('despesas_rateadas').select('*').in('equipe_id', equipeIds.length ? equipeIds : [0]).order('id'),
+    supabase.from('despesas_rateadas').select('*').is('equipe_id', null).order('id'),
   ]);
   if (custosErr) throw custosErr;
   if (adiantErr) throw adiantErr;
   if (rateadasErr) throw rateadasErr;
+  if (rateadasGeraisErr) throw rateadasGeraisErr;
 
-  const rateadaIds = rateadas.map((d) => d.id);
+  const todasRateadas = [...rateadas, ...rateadasGerais];
+  const rateadaIds = todasRateadas.map((d) => d.id);
   const { data: participantes, error: participantesErr } = await supabase
     .from('despesa_rateada_participantes')
     .select('*, pescadores(nome)')
@@ -56,24 +59,35 @@ async function buildDashboardData() {
   const rateadasByEquipe = groupBy(rateadas, 'equipe_id');
   const participantesByRateada = groupBy(participantes, 'despesa_rateada_id');
 
+  function montaDespesa(d) {
+    const parts = (participantesByRateada[d.id] || []).map((pp) => ({
+      id: pp.id, pescador_id: pp.pescador_id, pescador_nome: pp.pescadores ? pp.pescadores.nome : null,
+    }));
+    const n = parts.length || 1;
+    const cota = Number(d.valor_total) / n;
+    return { ...d, participantes: parts, cota_por_participante: cota };
+  }
+
   let totalFixoGeral = 0;
   let totalAdiantGeral = 0;
   let totalRateadoGeral = 0;
   const categorias = {};
 
-  const equipesOut = equipes.map((equipe) => {
-    const despesasRateadas = (rateadasByEquipe[equipe.id] || []).map((d) => {
-      const parts = (participantesByRateada[d.id] || []).map((pp) => ({
-        id: pp.id, pescador_id: pp.pescador_id, pescador_nome: pp.pescadores ? pp.pescadores.nome : null,
-      }));
-      const n = parts.length || 1;
-      const cota = Number(d.valor_total) / n;
-      totalRateadoGeral += Number(d.valor_total);
-      return { ...d, participantes: parts, cota_por_participante: cota };
+  const despesasRateadasGerais = rateadasGerais.map(montaDespesa);
+  const rateioGeralPorPescador = {};
+  despesasRateadasGerais.forEach((d) => {
+    totalRateadoGeral += Number(d.valor_total);
+    d.participantes.forEach((part) => {
+      rateioGeralPorPescador[part.pescador_id] = (rateioGeralPorPescador[part.pescador_id] || 0) + d.cota_por_participante;
     });
+  });
+
+  const equipesOut = equipes.map((equipe) => {
+    const despesasRateadas = (rateadasByEquipe[equipe.id] || []).map(montaDespesa);
 
     const rateioPorPescador = {};
     despesasRateadas.forEach((d) => {
+      totalRateadoGeral += Number(d.valor_total);
       d.participantes.forEach((part) => {
         rateioPorPescador[part.pescador_id] = (rateioPorPescador[part.pescador_id] || 0) + d.cota_por_participante;
       });
@@ -90,7 +104,9 @@ async function buildDashboardData() {
       totalFixoGeral += subtotalFixo;
       totalAdiantGeral += totalAdiantado;
 
-      const rateioCota = rateioPorPescador[p.id] || 0;
+      const rateioCotaEquipe = rateioPorPescador[p.id] || 0;
+      const rateioCotaGeral = rateioGeralPorPescador[p.id] || 0;
+      const rateioCota = rateioCotaEquipe + rateioCotaGeral;
       const saldo = subtotalFixo + rateioCota - totalAdiantado;
 
       return {
@@ -99,6 +115,8 @@ async function buildDashboardData() {
         subtotal_fixo: subtotalFixo,
         adiantamentos: adiantamentosP,
         total_adiantado: totalAdiantado,
+        rateio_cota_equipe: rateioCotaEquipe,
+        rateio_cota_geral: rateioCotaGeral,
         rateio_cota: rateioCota,
         saldo_a_pagar: saldo,
       };
@@ -113,6 +131,7 @@ async function buildDashboardData() {
   return {
     evento,
     equipes: equipesOut,
+    despesas_rateadas_gerais: despesasRateadasGerais,
     resumo: {
       categorias,
       subtotal_fixo_geral: totalFixoGeral,
@@ -150,7 +169,7 @@ router.get('/export/xlsx', asyncRoute(async (req, res) => {
     resumoSheet.addRow([TIPO_LABELS[tipo] || tipo, valor]);
   });
   resumoSheet.addRow(['Subtotal fixo geral', r.subtotal_fixo_geral || 0]);
-  resumoSheet.addRow(['Total rateado (combustível/iscas)', r.total_rateado_geral || 0]);
+  resumoSheet.addRow(['Total rateado (equipes + geral)', r.total_rateado_geral || 0]);
   resumoSheet.addRow(['Custo total geral', r.total_geral || 0]);
   resumoSheet.addRow(['Adiantamentos já recebidos', r.adiantamentos_geral || 0]);
   resumoSheet.addRow(['Saldo total a receber', r.saldo_geral || 0]);
@@ -167,7 +186,8 @@ router.get('/export/xlsx', asyncRoute(async (req, res) => {
     { header: 'Camisas', key: 'camisas', width: 12 },
     { header: 'Outras despesas', key: 'outras', width: 16 },
     { header: 'Subtotal fixo', key: 'subtotal_fixo', width: 14 },
-    { header: 'Rateio equipe', key: 'rateio_cota', width: 14 },
+    { header: 'Rateio equipe', key: 'rateio_cota_equipe', width: 14 },
+    { header: 'Rateio geral', key: 'rateio_cota_geral', width: 14 },
     { header: 'Adiantado', key: 'total_adiantado', width: 14 },
     { header: 'Saldo a pagar', key: 'saldo_a_pagar', width: 14 },
   ];
@@ -193,13 +213,14 @@ router.get('/export/xlsx', asyncRoute(async (req, res) => {
         camisas: porTipo.camisas || 0,
         outras,
         subtotal_fixo: p.subtotal_fixo,
-        rateio_cota: p.rateio_cota,
+        rateio_cota_equipe: p.rateio_cota_equipe,
+        rateio_cota_geral: p.rateio_cota_geral,
         total_adiantado: p.total_adiantado,
         saldo_a_pagar: p.saldo_a_pagar,
       });
     });
   });
-  ['hospedagem', 'piloto_embarcacao', 'camisas', 'outras', 'subtotal_fixo', 'rateio_cota', 'total_adiantado', 'saldo_a_pagar'].forEach((key) => {
+  ['hospedagem', 'piloto_embarcacao', 'camisas', 'outras', 'subtotal_fixo', 'rateio_cota_equipe', 'rateio_cota_geral', 'total_adiantado', 'saldo_a_pagar'].forEach((key) => {
     pescadoresSheet.getColumn(key).numFmt = 'R$ #,##0.00';
   });
 
@@ -212,6 +233,15 @@ router.get('/export/xlsx', asyncRoute(async (req, res) => {
     { header: 'Cota por participante', key: 'cota', width: 18 },
   ];
   rateioSheet.getRow(1).font = { bold: true };
+  (data.despesas_rateadas_gerais || []).forEach((d) => {
+    rateioSheet.addRow({
+      equipe: 'Geral (todos)',
+      descricao: d.descricao,
+      valor_total: Number(d.valor_total),
+      participantes: d.participantes.map((p) => p.pescador_nome).join(', '),
+      cota: d.cota_por_participante,
+    });
+  });
   (data.equipes || []).forEach((equipe) => {
     equipe.despesas_rateadas.forEach((d) => {
       rateioSheet.addRow({
@@ -352,23 +382,34 @@ router.delete('/adiantamentos/:id', asyncRoute(async (req, res) => {
   res.json({ ok: true });
 }));
 
-// ---------- Despesas rateadas (combustível, iscas, etc.) ----------
+// ---------- Despesas rateadas (combustível, iscas, etc. — por equipe ou gerais entre todos) ----------
 router.post('/despesas-rateadas', asyncRoute(async (req, res) => {
   const { equipe_id, descricao, valor_total, data, participante_ids } = req.body;
-  if (!equipe_id || !descricao || valor_total == null) {
-    return res.status(400).json({ error: 'equipe_id, descricao e valor_total são obrigatórios' });
+  if (!descricao || valor_total == null) {
+    return res.status(400).json({ error: 'descricao e valor_total são obrigatórios' });
   }
 
   const { data: despesa, error: despesaErr } = await supabase.from('despesas_rateadas').insert({
-    equipe_id, descricao, valor_total, data: data || null,
+    equipe_id: equipe_id || null, descricao, valor_total, data: data || null,
   }).select().single();
   if (despesaErr) throw despesaErr;
 
   let ids = participante_ids;
   if (!ids || ids.length === 0) {
-    const { data: membros, error: membrosErr } = await supabase.from('pescadores').select('id').eq('equipe_id', equipe_id);
-    if (membrosErr) throw membrosErr;
-    ids = membros.map((m) => m.id);
+    if (equipe_id) {
+      const { data: membros, error: membrosErr } = await supabase.from('pescadores').select('id').eq('equipe_id', equipe_id);
+      if (membrosErr) throw membrosErr;
+      ids = membros.map((m) => m.id);
+    } else {
+      // rateio geral sem participantes especificados: todos os pescadores do evento ativo
+      const evento = await getEventoAtivo();
+      const { data: equipesEvento, error: equipesErr } = await supabase.from('equipes').select('id').eq('evento_id', evento.id);
+      if (equipesErr) throw equipesErr;
+      const equipeIds = equipesEvento.map((e) => e.id);
+      const { data: membros, error: membrosErr } = await supabase.from('pescadores').select('id').in('equipe_id', equipeIds.length ? equipeIds : [0]);
+      if (membrosErr) throw membrosErr;
+      ids = membros.map((m) => m.id);
+    }
   }
 
   const rows = ids.map((pid) => ({ despesa_rateada_id: despesa.id, pescador_id: pid }));

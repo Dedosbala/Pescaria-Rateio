@@ -32,7 +32,8 @@
         <p id="pescador-equipe" class="muted"></p>
 
         <div class="summary-row"><span>Despesas fixas + avulsas</span><span id="p-subtotal-fixo">R$ 0,00</span></div>
-        <div class="summary-row"><span>Rateio da equipe (combustível, iscas...)</span><span id="p-rateio">R$ 0,00</span></div>
+        <div class="summary-row"><span>Rateio da equipe (combustível, iscas...)</span><span id="p-rateio-equipe">R$ 0,00</span></div>
+        <div class="summary-row"><span>Rateio geral do grupo (cozinheira, limpeza...)</span><span id="p-rateio-geral">R$ 0,00</span></div>
         <div class="summary-row"><span>Adiantamentos já pagos</span><span id="p-adiantado">R$ 0,00</span></div>
         <div class="summary-row total"><span>Saldo a pagar</span><span id="p-saldo">R$ 0,00</span></div>
       </section>
@@ -52,6 +53,20 @@
         </div>
         <p class="muted">Combustível, iscas e outros custos divididos entre os membros da equipe.</p>
         <div id="lista-rateio"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-title-row">
+          <h2>Despesas rateadas gerais (entre todos os 21 pescadores)</h2>
+          <button id="btn-add-rateio-geral" class="btn btn-primary">+ Nova despesa geral</button>
+        </div>
+        <p class="muted">Cozinheira, café da manhã, jantar, churrasco, limpeza, energia — divididos entre todo o grupo.</p>
+        <div id="lista-rateio-geral"></div>
+      </section>
+
+      <section class="card">
+        <button id="btn-toggle-info" class="collapsible-toggle">Ver instruções de custos adicionais ▾</button>
+        <div id="info-viagem-container" class="info-viagem" style="display:none; margin-top: 14px;"></div>
       </section>
 
       <section class="card">
