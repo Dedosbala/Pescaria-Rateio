@@ -200,6 +200,8 @@ document.addEventListener('blur', async (e) => {
 }, true);
 
 document.getElementById('btn-add-equipe').addEventListener('click', () => openEquipeModal(null));
+document.getElementById('btn-export-pdf').addEventListener('click', () => window.print());
+document.getElementById('btn-export-xlsx').addEventListener('click', () => { window.location.href = '/api/export/xlsx'; });
 
 // ---------- Modal genérico ----------
 const overlay = document.getElementById('modal-overlay');

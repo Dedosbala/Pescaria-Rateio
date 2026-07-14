@@ -11,16 +11,21 @@
     <div class="topbar-inner">
       <div>
         <h1 id="evento-nome">Carregando...</h1>
-        <p id="evento-sub" class="muted">Painel administrativo · <a href="index.html" class="link-light">voltar para área do pescador</a></p>
+        <p id="evento-sub" class="muted"></p>
+        <p class="muted" style="margin-top:2px;">Painel administrativo · <a href="index.html" class="link-light">voltar para área do pescador</a></p>
       </div>
-      <button id="btn-add-equipe" class="btn btn-primary">+ Nova equipe</button>
+      <div class="row-actions">
+        <button id="btn-export-pdf" class="btn">Imprimir / PDF</button>
+        <button id="btn-export-xlsx" class="btn">Exportar Excel</button>
+        <button id="btn-add-equipe" class="btn btn-primary">+ Nova equipe</button>
+      </div>
     </div>
   </header>
 
   <main class="container">
-    <section id="stats" class="stats-grid"></section>
+    <section id="stats" class="stats-grid no-print"></section>
 
-    <section class="card">
+    <section class="card" id="resumo-print-section">
       <h2>Resumo geral</h2>
       <div id="resumo-tabela"></div>
     </section>

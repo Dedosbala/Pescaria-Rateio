@@ -1,4 +1,5 @@
 const express = require('express');
+const ExcelJS = require('exceljs');
 const supabase = require('../db/supabaseClient');
 
 const router = express.Router();
@@ -17,9 +18,9 @@ async function getEventoAtivo() {
 }
 
 // ---------- Dashboard (leitura agregada) ----------
-router.get('/dashboard', asyncRoute(async (req, res) => {
+async function buildDashboardData() {
   const evento = await getEventoAtivo();
-  if (!evento) return res.json({ evento: null, equipes: [], resumo: null });
+  if (!evento) return { evento: null, equipes: [], resumo: null };
 
   const { data: equipes, error: equipesErr } = await supabase
     .from('equipes').select('*').eq('evento_id', evento.id).order('id');
@@ -109,7 +110,7 @@ router.get('/dashboard', asyncRoute(async (req, res) => {
   const totalGeral = totalFixoGeral + totalRateadoGeral;
   const saldoGeral = totalGeral - totalAdiantGeral;
 
-  res.json({
+  return {
     evento,
     equipes: equipesOut,
     resumo: {
@@ -122,7 +123,113 @@ router.get('/dashboard', asyncRoute(async (req, res) => {
       num_equipes: equipes.length,
       num_pescadores: pescadores.length,
     },
+  };
+}
+
+router.get('/dashboard', asyncRoute(async (req, res) => {
+  const data = await buildDashboardData();
+  res.json(data);
+}));
+
+// ---------- Exportação ----------
+const TIPO_LABELS = { hospedagem: 'Hospedagem', piloto_embarcacao: 'Piloto / Embarcação', camisas: 'Camisas' };
+
+router.get('/export/xlsx', asyncRoute(async (req, res) => {
+  const data = await buildDashboardData();
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Controle de Pescaria';
+  workbook.created = new Date();
+
+  const resumoSheet = workbook.addWorksheet('Resumo');
+  resumoSheet.columns = [{ width: 32 }, { width: 18 }];
+  resumoSheet.addRow([data.evento ? data.evento.nome : 'Pescaria', '']);
+  resumoSheet.addRow([data.evento ? `${data.evento.local} · ${data.evento.ano}` : '', '']);
+  resumoSheet.addRow([]);
+  const r = data.resumo || {};
+  Object.entries(r.categorias || {}).forEach(([tipo, valor]) => {
+    resumoSheet.addRow([TIPO_LABELS[tipo] || tipo, valor]);
   });
+  resumoSheet.addRow(['Subtotal fixo geral', r.subtotal_fixo_geral || 0]);
+  resumoSheet.addRow(['Total rateado (combustível/iscas)', r.total_rateado_geral || 0]);
+  resumoSheet.addRow(['Custo total geral', r.total_geral || 0]);
+  resumoSheet.addRow(['Adiantamentos já recebidos', r.adiantamentos_geral || 0]);
+  resumoSheet.addRow(['Saldo total a receber', r.saldo_geral || 0]);
+  resumoSheet.getColumn(2).numFmt = 'R$ #,##0.00';
+  resumoSheet.getRow(1).font = { bold: true, size: 14 };
+
+  const pescadoresSheet = workbook.addWorksheet('Pescadores');
+  pescadoresSheet.columns = [
+    { header: 'Equipe', key: 'equipe', width: 14 },
+    { header: 'Piloto', key: 'piloto', width: 16 },
+    { header: 'Pescador', key: 'nome', width: 20 },
+    { header: 'Hospedagem', key: 'hospedagem', width: 14 },
+    { header: 'Piloto/Embarcação', key: 'piloto_embarcacao', width: 16 },
+    { header: 'Camisas', key: 'camisas', width: 12 },
+    { header: 'Outras despesas', key: 'outras', width: 16 },
+    { header: 'Subtotal fixo', key: 'subtotal_fixo', width: 14 },
+    { header: 'Rateio equipe', key: 'rateio_cota', width: 14 },
+    { header: 'Adiantado', key: 'total_adiantado', width: 14 },
+    { header: 'Saldo a pagar', key: 'saldo_a_pagar', width: 14 },
+  ];
+  pescadoresSheet.getRow(1).font = { bold: true };
+
+  (data.equipes || []).forEach((equipe) => {
+    equipe.pescadores.forEach((p) => {
+      const porTipo = {};
+      let outras = 0;
+      p.custos_fixos.forEach((c) => {
+        if (['hospedagem', 'piloto_embarcacao', 'camisas'].includes(c.tipo)) {
+          porTipo[c.tipo] = (porTipo[c.tipo] || 0) + Number(c.valor);
+        } else {
+          outras += Number(c.valor);
+        }
+      });
+      pescadoresSheet.addRow({
+        equipe: equipe.nome,
+        piloto: equipe.piloto_nome || '',
+        nome: p.nome,
+        hospedagem: porTipo.hospedagem || 0,
+        piloto_embarcacao: porTipo.piloto_embarcacao || 0,
+        camisas: porTipo.camisas || 0,
+        outras,
+        subtotal_fixo: p.subtotal_fixo,
+        rateio_cota: p.rateio_cota,
+        total_adiantado: p.total_adiantado,
+        saldo_a_pagar: p.saldo_a_pagar,
+      });
+    });
+  });
+  ['hospedagem', 'piloto_embarcacao', 'camisas', 'outras', 'subtotal_fixo', 'rateio_cota', 'total_adiantado', 'saldo_a_pagar'].forEach((key) => {
+    pescadoresSheet.getColumn(key).numFmt = 'R$ #,##0.00';
+  });
+
+  const rateioSheet = workbook.addWorksheet('Despesas rateadas');
+  rateioSheet.columns = [
+    { header: 'Equipe', key: 'equipe', width: 14 },
+    { header: 'Descrição', key: 'descricao', width: 24 },
+    { header: 'Valor total', key: 'valor_total', width: 14 },
+    { header: 'Participantes', key: 'participantes', width: 40 },
+    { header: 'Cota por participante', key: 'cota', width: 18 },
+  ];
+  rateioSheet.getRow(1).font = { bold: true };
+  (data.equipes || []).forEach((equipe) => {
+    equipe.despesas_rateadas.forEach((d) => {
+      rateioSheet.addRow({
+        equipe: equipe.nome,
+        descricao: d.descricao,
+        valor_total: Number(d.valor_total),
+        participantes: d.participantes.map((p) => p.pescador_nome).join(', '),
+        cota: d.cota_por_participante,
+      });
+    });
+  });
+  rateioSheet.getColumn('valor_total').numFmt = 'R$ #,##0.00';
+  rateioSheet.getColumn('cota').numFmt = 'R$ #,##0.00';
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="pescaria-rateio.xlsx"');
+  await workbook.xlsx.write(res);
+  res.end();
 }));
 
 function groupBy(arr, key) {

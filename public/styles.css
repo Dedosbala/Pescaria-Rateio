@@ -239,3 +239,12 @@ tfoot td { font-weight: 700; border-top: 2px solid var(--border); border-bottom:
   border: none;
   padding: 0;
 }
+
+@media print {
+  .no-print, .btn, .row-actions, .modal-overlay, #btn-add-equipe, #btn-export-pdf, #btn-export-xlsx { display: none !important; }
+  body { background: white; }
+  .card, .equipe-card { border: none; box-shadow: none; break-inside: avoid; }
+  .topbar { background: white !important; color: black !important; padding: 8px 0; }
+  .topbar .muted, .topbar .muted a { color: #555 !important; }
+  .equipe-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
