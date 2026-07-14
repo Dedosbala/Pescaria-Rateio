@@ -1,4 +1,4 @@
-const EQUIPE_COLORS = ['#1b4f72', '#117a65', '#b9770e', '#6c3483', '#943126', '#1e8449', '#34495e'];
+const EQUIPE_COLORS = ['#071a2b', '#0e3a54', '#136b7a', '#00a7b5', '#0a4f6b', '#1c8fa0', '#123049'];
 
 let state = null;
 

@@ -1,5 +1,9 @@
 :root {
-  --blue-dark: #1b4f72;
+  --blue-dark: #0d3b5c;
+  --totvs-navy: #071a2b;
+  --totvs-navy-mid: #0e3a54;
+  --totvs-teal: #00a7b5;
+  --totvs-teal-light: #4dd9e0;
   --text: #1c2833;
   --muted: #7b8794;
   --border: #e1e5e9;
@@ -19,7 +23,7 @@ body {
 }
 
 .topbar {
-  background: var(--blue-dark);
+  background: linear-gradient(120deg, var(--totvs-navy) 0%, var(--totvs-navy-mid) 55%, var(--totvs-teal) 130%);
   color: white;
   padding: 20px 0;
 }
@@ -55,7 +59,7 @@ body {
   padding: 16px;
   text-align: center;
 }
-.stat-box .value { font-size: 26px; font-weight: 700; color: var(--blue-dark); }
+.stat-box .value { font-size: 26px; font-weight: 700; color: var(--totvs-navy-mid); }
 .stat-box .label { font-size: 13px; color: var(--muted); margin-top: 4px; }
 
 .card {
@@ -119,8 +123,8 @@ tfoot td { font-weight: 700; border-top: 2px solid var(--border); border-bottom:
   color: var(--text);
 }
 .btn:hover { background: #e2e6ea; }
-.btn-primary { background: var(--blue-dark); color: white; }
-.btn-primary:hover { background: #163f5c; }
+.btn-primary { background: var(--totvs-teal); color: white; }
+.btn-primary:hover { background: #008d99; }
 .btn-danger { background: #fbeaea; color: var(--danger); }
 .btn-danger:hover { background: #f6d5d5; }
 .btn-sm { padding: 4px 8px; font-size: 12px; }
@@ -199,7 +203,7 @@ tfoot td { font-weight: 700; border-top: 2px solid var(--border); border-bottom:
   font-weight: 600;
   color: var(--text);
 }
-.name-btn:hover { border-color: var(--blue-dark); background: #f4f8fb; }
+.name-btn:hover { border-color: var(--totvs-teal); background: #f2fcfd; }
 .name-btn .equipe-tag { display: block; font-size: 11px; font-weight: 400; color: var(--muted); margin-top: 4px; }
 
 .equipe-group-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin: 18px 0 8px; }
@@ -232,7 +236,7 @@ tfoot td { font-weight: 700; border-top: 2px solid var(--border); border-bottom:
 
 .collapsible-toggle {
   cursor: pointer;
-  color: var(--blue-dark);
+  color: var(--totvs-teal);
   font-weight: 600;
   font-size: 14px;
   background: none;
