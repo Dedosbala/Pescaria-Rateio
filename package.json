@@ -1,0 +1,16 @@
+{
+  "name": "pescaria-rateio",
+  "version": "1.0.0",
+  "description": "Controle de grupo de pescadores: cadastro, despesas individuais e rateadas",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node db/seed.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.19.2"
+  }
+}

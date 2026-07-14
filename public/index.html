@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pescaria — Minhas Despesas</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div>
+        <h1 id="evento-nome">Carregando...</h1>
+        <p id="evento-sub" class="muted"></p>
+      </div>
+      <a id="trocar-link" href="#" class="btn" style="display:none; color:white; background:rgba(255,255,255,0.15);">Trocar de pescador</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="seletor-nome" class="card">
+      <h2>Quem é você?</h2>
+      <p class="muted">Escolha seu nome para lançar suas despesas.</p>
+      <div id="name-grid-container"></div>
+    </section>
+
+    <section id="area-pessoal" style="display:none;">
+      <section class="card">
+        <div class="person-header">
+          <h2 id="pescador-nome">—</h2>
+        </div>
+        <p id="pescador-equipe" class="muted"></p>
+
+        <div class="summary-row"><span>Despesas fixas + avulsas</span><span id="p-subtotal-fixo">R$ 0,00</span></div>
+        <div class="summary-row"><span>Rateio da equipe (combustível, iscas...)</span><span id="p-rateio">R$ 0,00</span></div>
+        <div class="summary-row"><span>Adiantamentos já pagos</span><span id="p-adiantado">R$ 0,00</span></div>
+        <div class="summary-row total"><span>Saldo a pagar</span><span id="p-saldo">R$ 0,00</span></div>
+      </section>
+
+      <section class="card">
+        <div class="section-title-row">
+          <h2>Minhas despesas individuais</h2>
+          <button id="btn-add-despesa" class="btn btn-primary">+ Nova despesa</button>
+        </div>
+        <div id="lista-despesas"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-title-row">
+          <h2>Despesas rateadas da minha equipe</h2>
+          <button id="btn-add-rateio" class="btn btn-primary">+ Nova despesa rateada</button>
+        </div>
+        <p class="muted">Combustível, iscas e outros custos divididos entre os membros da equipe.</p>
+        <div id="lista-rateio"></div>
+      </section>
+
+      <section class="card">
+        <button id="btn-toggle-resumo" class="collapsible-toggle">Ver resumo geral do grupo ▾</button>
+        <div id="resumo-geral-container" style="display:none; margin-top: 14px;"></div>
+      </section>
+    </section>
+
+    <p class="muted" style="text-align:center; margin-top: 24px;">
+      <a href="admin.html" class="muted">Área administrativa</a>
+    </p>
+  </main>
+
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-title"></h3>
+        <button id="modal-close" class="btn-icon">&times;</button>
+      </div>
+      <form id="modal-form" class="modal-body"></form>
+    </div>
+  </div>
+
+  <script src="pescador.js"></script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle de Pescaria</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div>
+        <h1 id="evento-nome">Carregando...</h1>
+        <p id="evento-sub" class="muted">Painel administrativo · <a href="index.html" class="link-light">voltar para área do pescador</a></p>
+      </div>
+      <button id="btn-add-equipe" class="btn btn-primary">+ Nova equipe</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="stats" class="stats-grid"></section>
+
+    <section class="card">
+      <h2>Resumo geral</h2>
+      <div id="resumo-tabela"></div>
+    </section>
+
+    <section id="equipes-container"></section>
+  </main>
+
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-title"></h3>
+        <button id="modal-close" class="btn-icon">&times;</button>
+      </div>
+      <form id="modal-form" class="modal-body"></form>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>
