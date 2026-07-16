@@ -311,8 +311,10 @@ router.post('/pescadores', asyncRoute(async (req, res) => {
 }));
 
 router.put('/pescadores/:id', asyncRoute(async (req, res) => {
-  const { nome, a_confirmar } = req.body;
-  const { error } = await supabase.from('pescadores').update({ nome, a_confirmar: !!a_confirmar }).eq('id', req.params.id);
+  const { nome, a_confirmar, equipe_id } = req.body;
+  const update = { nome, a_confirmar: !!a_confirmar };
+  if (equipe_id !== undefined) update.equipe_id = Number(equipe_id);
+  const { error } = await supabase.from('pescadores').update(update).eq('id', req.params.id);
   if (error) throw error;
   res.json({ ok: true });
 }));

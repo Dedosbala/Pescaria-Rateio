@@ -116,7 +116,10 @@ function renderEquipeCard(equipe, idx) {
           <button class="btn btn-sm" data-action="add-adiantamento" data-pescador-id="${p.id}" data-pescador-nome="${p.nome}">+</button>
         </td>
         <td class="${saldoClass}">${fmt(p.saldo_a_pagar)}</td>
-        <td><button class="btn btn-sm btn-danger" data-action="del-pescador" data-id="${p.id}">Excluir</button></td>
+        <td>
+          <button class="btn btn-sm" data-action="edit-pescador" data-id="${p.id}">Editar</button>
+          <button class="btn btn-sm btn-danger" data-action="del-pescador" data-id="${p.id}">Excluir</button>
+        </td>
       </tr>
     `;
   }).join('');
@@ -187,6 +190,8 @@ document.addEventListener('click', async (e) => {
       openEquipeModal(btn.dataset.id);
     } else if (action === 'add-rateio') {
       openRateioModal(btn.dataset.equipeId);
+    } else if (action === 'edit-pescador') {
+      openEditPescadorModal(btn.dataset.id);
     }
   } catch (err) {
     alert(err.message);
@@ -371,6 +376,64 @@ function openRateioGeralModal() {
         participante_ids,
       }),
     });
+  });
+}
+
+function escAttr(str) {
+  return String(str ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function openEditPescadorModal(pescadorId) {
+  let pescador = null;
+  for (const eq of state.equipes) {
+    pescador = eq.pescadores.find((p) => String(p.id) === String(pescadorId));
+    if (pescador) break;
+  }
+  if (!pescador) return;
+
+  const custoByTipo = {};
+  pescador.custos_fixos.forEach((c) => { custoByTipo[c.tipo] = c; });
+
+  const equipeOptions = state.equipes.map((eq) =>
+    `<option value="${eq.id}" ${String(eq.id) === String(pescador.equipe_id) ? 'selected' : ''}>${escAttr(eq.nome)}</option>`
+  ).join('');
+
+  openModalRaw(`Editar pescador — ${escAttr(pescador.nome)}`, `
+    <label>Nome<input name="nome" type="text" required value="${escAttr(pescador.nome)}" /></label>
+    <label>Equipe<select name="equipe_id">${equipeOptions}</select></label>
+    <label>Hospedagem (R$)<input name="hospedagem" type="number" step="0.01" value="${custoByTipo.hospedagem ? custoByTipo.hospedagem.valor : 0}" /></label>
+    <label>Piloto/Embarcação (R$)<input name="piloto" type="number" step="0.01" value="${custoByTipo.piloto_embarcacao ? custoByTipo.piloto_embarcacao.valor : 0}" /></label>
+    <label>Camisas (R$)<input name="camisas" type="number" step="0.01" value="${custoByTipo.camisas ? custoByTipo.camisas.valor : 0}" /></label>
+    <label class="checkbox-row"><input name="a_confirmar" type="checkbox" ${pescador.a_confirmar ? 'checked' : ''} /> A confirmar</label>
+  `, async (fd) => {
+    await api(`/pescadores/${pescador.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        nome: fd.get('nome'),
+        a_confirmar: fd.get('a_confirmar') === 'on',
+        equipe_id: Number(fd.get('equipe_id')),
+      }),
+    });
+
+    const custos = [
+      ['hospedagem', 'Hospedagem', fd.get('hospedagem')],
+      ['piloto_embarcacao', 'Piloto / Embarcação', fd.get('piloto')],
+      ['camisas', 'Camisas', fd.get('camisas')],
+    ];
+    for (const [tipo, descricao, valor] of custos) {
+      const existing = custoByTipo[tipo];
+      if (existing) {
+        await api(`/custos-fixos/${existing.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ tipo, descricao, valor: parseFloat(valor) || 0 }),
+        });
+      } else {
+        await api('/custos-fixos', {
+          method: 'POST',
+          body: JSON.stringify({ pescador_id: pescador.id, tipo, descricao, valor: parseFloat(valor) || 0 }),
+        });
+      }
+    }
   });
 }
 
