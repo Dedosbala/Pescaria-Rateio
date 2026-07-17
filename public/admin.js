@@ -112,7 +112,7 @@ function renderEquipeCard(equipe, idx) {
         <td>${fmt(p.subtotal_fixo)}</td>
         <td>${fmt(p.rateio_cota)}</td>
         <td>
-          ${fmt(p.total_adiantado)}
+          <span class="editable" contenteditable="true" data-action="edit-adiantamento" data-pescador-id="${p.id}">${p.total_adiantado}</span>
           <button class="btn btn-sm" data-action="add-adiantamento" data-pescador-id="${p.id}" data-pescador-nome="${p.nome}">+</button>
         </td>
         <td class="${saldoClass}">${fmt(p.saldo_a_pagar)}</td>
@@ -213,8 +213,43 @@ document.addEventListener('blur', async (e) => {
     } catch (err) {
       alert(err.message);
     }
+  } else if (el.dataset && el.dataset.action === 'edit-adiantamento') {
+    const valor = parseFloat(el.textContent.replace(',', '.'));
+    if (isNaN(valor) || valor < 0) { alert('Valor inválido'); await loadDashboard(); return; }
+    try {
+      await setAdiantamentoTotal(el.dataset.pescadorId, valor);
+      await loadDashboard();
+    } catch (err) {
+      alert(err.message);
+    }
   }
 }, true);
+
+async function setAdiantamentoTotal(pescadorId, novoValor) {
+  let pescador = null;
+  for (const eq of state.equipes) {
+    pescador = eq.pescadores.find((p) => String(p.id) === String(pescadorId));
+    if (pescador) break;
+  }
+  const existentes = pescador ? pescador.adiantamentos : [];
+
+  if (existentes.length === 1) {
+    await api(`/adiantamentos/${existentes[0].id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ valor: novoValor, data: existentes[0].data, observacao: existentes[0].observacao }),
+    });
+  } else {
+    for (const a of existentes) {
+      await api(`/adiantamentos/${a.id}`, { method: 'DELETE' });
+    }
+    if (novoValor > 0) {
+      await api('/adiantamentos', {
+        method: 'POST',
+        body: JSON.stringify({ pescador_id: Number(pescadorId), valor: novoValor, observacao: 'Adiantamento' }),
+      });
+    }
+  }
+}
 
 document.getElementById('btn-add-equipe').addEventListener('click', () => openEquipeModal(null));
 document.getElementById('btn-export-pdf').addEventListener('click', () => window.print());
